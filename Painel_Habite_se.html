@@ -1,0 +1,576 @@
+<title>Painel Habite-se</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg-deep:#0B1526; --bg-panel:#101E36; --bg-panel-2:#0E1A30;
+  --line-ink:#1F3350; --line-ink-soft:#2A4066;
+  --text-primary:#E7EDF7; --text-faint:#7C8CA8;
+  --accent-cyan:#4FD1E8; --accent-blue:#2E5FA3;
+  --c-nao-iniciado:#5C6B84; --c-andamento:#F2B84B; --c-concluido:#33B27A; --c-atrasado:#E15A4C;
+}
+@media(prefers-color-scheme: light){
+  :root{ --bg-deep:#0B1526; --bg-panel:#101E36; }
+}
+*{box-sizing:border-box;}
+body{margin:0; padding:0; background:var(--bg-deep); color:var(--text-primary); font-family:'Segoe UI',Arial,sans-serif;}
+.wrap{max-width:1280px; margin:0 auto; padding:0 20px 60px;}
+header.top{background:linear-gradient(180deg,#0D1930,#0B1526); border-bottom:1px solid var(--line-ink); padding:22px 0;}
+.top-row{display:flex; justify-content:space-between; align-items:flex-start; gap:20px; flex-wrap:wrap;}
+.eyebrow{font-family:'IBM Plex Mono',monospace; font-size:11px; letter-spacing:.14em; color:var(--accent-cyan); text-transform:uppercase; margin-bottom:6px;}
+h1{margin:0 0 6px 0; font-size:26px; font-weight:700;}
+.sub{color:var(--text-faint); font-size:13px; max-width:640px;}
+.controls{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+.filtro{background:var(--bg-panel); color:var(--text-primary); border:1px solid var(--line-ink-soft); border-radius:6px; padding:9px 12px; font-size:13px; cursor:pointer;}
+.btn{background:var(--bg-panel); color:var(--text-primary); border:1px solid var(--line-ink-soft); border-radius:6px; padding:9px 14px; font-size:12.5px; cursor:pointer; white-space:nowrap;}
+.btn:hover{border-color:var(--accent-cyan);}
+.src-note{font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--text-faint);}
+.src-note.live{color:var(--c-concluido);}
+.src-note.err{color:var(--c-atrasado);}
+
+section{padding:26px 0;}
+.section-head{display:flex; align-items:center; gap:10px; margin-bottom:16px;}
+.section-num{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--accent-cyan); border:1px solid var(--line-ink-soft); border-radius:4px; padding:2px 7px;}
+.section-title{font-size:16px; font-weight:700;}
+
+.kpi-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--line-ink); border:1px solid var(--line-ink); border-radius:10px; overflow:hidden;}
+.kpi{background:var(--bg-panel); padding:16px 18px;}
+.kpi .lbl{font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:.08em; color:var(--text-faint); text-transform:uppercase;}
+.kpi .val{font-size:30px; font-weight:700; margin-top:6px;}
+.kpi .foot{font-size:11px; color:var(--text-faint); margin-top:4px;}
+@media(max-width:820px){.kpi-grid{grid-template-columns:repeat(2,1fr);}}
+
+.board{display:flex; gap:14px; overflow-x:auto; padding-bottom:10px;}
+.org-col{flex:1 1 220px; min-width:220px; background:var(--bg-panel); border:1px solid var(--line-ink); border-radius:10px; overflow:hidden;}
+.org-head{background:linear-gradient(135deg,var(--accent-blue),#1F3864); padding:12px 12px; font-weight:700; font-size:13px; text-align:center;}
+.org-head .pct{display:block; font-family:'IBM Plex Mono',monospace; font-size:11px; font-weight:400; color:#CFE0F5; margin-top:2px;}
+.org-body{padding:6px;}
+.subhead{font-size:10.5px; font-weight:700; font-style:italic; color:var(--accent-cyan); background:rgba(79,209,232,.08); padding:7px 8px; margin:6px 2px 4px; border-radius:4px;}
+.item-row{border-radius:5px; padding:8px 9px; margin:4px 2px; font-size:11.5px; line-height:1.35; cursor:default; position:relative;}
+.item-row[data-status="Não Iniciado"]{background:var(--c-nao-iniciado); color:#EAF0F8;}
+.item-row[data-status="Em Andamento"]{background:var(--c-andamento); color:#2B2205;}
+.item-row[data-status="Concluído"]{background:var(--c-concluido); color:#04241A; font-weight:600;}
+.item-row[data-status="Atrasado"]{background:var(--c-atrasado); color:#2B0805; font-weight:600;}
+.legend{display:flex; gap:16px; flex-wrap:wrap; margin-bottom:14px;}
+.legend-item{display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--text-faint);}
+.legend-dot{width:11px; height:11px; border-radius:3px;}
+
+.charts-grid{display:grid; grid-template-columns:1.1fr .9fr; gap:1px; background:var(--line-ink); border:1px solid var(--line-ink); border-radius:10px; overflow:hidden;}
+@media(max-width:900px){.charts-grid{grid-template-columns:1fr;}}
+.chart-box{background:var(--bg-panel); padding:18px;}
+.chart-box h3{margin:0 0 14px 0; font-size:13px; color:var(--text-faint); font-weight:600; text-transform:uppercase; letter-spacing:.05em;}
+.bar-row{display:grid; grid-template-columns:120px 1fr 42px; align-items:center; gap:10px; margin-bottom:11px;}
+.bar-label{font-size:11.5px; color:var(--text-primary);}
+.bar-track{height:9px; background:var(--bg-panel-2); border-radius:5px; overflow:hidden;}
+.bar-fill{height:100%; border-radius:5px;}
+.bar-val{font-family:'IBM Plex Mono',monospace; font-size:11px; color:var(--text-faint); text-align:right;}
+.donut-wrap{display:flex; align-items:center; gap:20px; flex-wrap:wrap;}
+.donut{width:150px; height:150px; border-radius:50%; position:relative; flex-shrink:0;}
+.donut-center{position:absolute; inset:22px; background:var(--bg-panel); border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+.donut-center .pct{font-size:22px; font-weight:700;}
+.donut-center .lbl{font-size:9.5px; color:var(--text-faint); text-transform:uppercase;}
+.donut-legend{display:flex; flex-direction:column; gap:8px;}
+.dl-item{display:flex; align-items:center; gap:8px; font-size:12px;}
+.dl-dot{width:10px; height:10px; border-radius:3px; flex-shrink:0;}
+.dl-item b{margin-left:auto; font-family:'IBM Plex Mono',monospace;}
+
+.attn-panel{background:var(--bg-panel); border:1px solid var(--line-ink); border-radius:10px; padding:18px; overflow-x:auto;}
+table{width:100%; border-collapse:collapse; font-size:12px;}
+th{text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-faint); padding:8px 10px; border-bottom:1px solid var(--line-ink-soft);}
+td{padding:9px 10px; border-bottom:1px solid var(--line-ink); vertical-align:top;}
+.tag{display:inline-block; padding:2px 8px; border-radius:10px; font-size:10.5px; font-weight:600;}
+.s-Não_Iniciado{background:var(--c-nao-iniciado); color:#EAF0F8;}
+.s-Em_Andamento{background:var(--c-andamento); color:#2B2205;}
+.s-Concluído{background:var(--c-concluido); color:#04241A;}
+.s-Atrasado{background:var(--c-atrasado); color:#2B0805;}
+.p-Alta{background:#4A1414; color:#FFB4A8;}
+.p-Média{background:#4A3A14; color:#FFDA8A;}
+.p-Baixa{background:#123A24; color:#9BE8C0;}
+.empty-note{color:var(--text-faint); font-size:13px; text-align:center; padding:20px;}
+
+.modal-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:50;}
+.modal-backdrop.show{display:flex;}
+.modal{background:var(--bg-panel); border:1px solid var(--line-ink-soft); border-radius:10px; padding:22px; width:90%; max-width:480px;}
+.modal h3{margin:0 0 8px 0; font-size:15px;}
+.modal p{font-size:12.5px; color:var(--text-faint); line-height:1.5;}
+.modal input[type=text]{width:100%; padding:9px 10px; background:var(--bg-panel-2); border:1px solid var(--line-ink-soft); border-radius:6px; color:var(--text-primary); font-size:12.5px; margin:10px 0;}
+.modal-actions{display:flex; gap:8px; justify-content:flex-end; margin-top:12px;}
+.connect-status{font-size:12px; margin-top:8px;}
+.connect-status.ok{color:var(--c-concluido);}
+.connect-status.err{color:var(--c-atrasado);}
+.permalink-box{display:none; margin-top:10px; font-size:11px; word-break:break-all; background:var(--bg-panel-2); padding:8px; border-radius:6px; color:var(--text-faint);}
+.permalink-box.show{display:block;}
+footer.note{padding:20px 0; text-align:center; color:var(--text-faint); font-size:11px; font-family:'IBM Plex Mono',monospace;}
+</style>
+
+<div class="wrap">
+<header class="top">
+  <div class="wrap" style="padding:0;">
+    <div class="top-row">
+      <div>
+        <div class="eyebrow">Controle de Vistorias · Empreendimento</div>
+        <h1>Painel — Vistorias de Habite-se</h1>
+        <div class="sub">67 itens macro em 5 frentes (Novacap, CAESB, NEO Energia, Bombeiros, Agefis) para a retirada da carta de habite-se. Filtre por órgão para focar a análise.</div>
+      </div>
+      <div class="controls">
+        <select id="filtroOrgao" class="filtro">
+          <option value="Todos">Todos os órgãos</option>
+        </select>
+        <button class="btn" id="btnUpload">Carregar arquivo (.xlsx)</button>
+        <input type="file" id="fileInput" accept=".xlsx" style="display:none;">
+        <button class="btn" id="btnConnect">Exemplo offline · conectar fonte</button>
+        <span class="src-note" id="srcNote">Dados de 2026-09-10</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="section-head"><span class="section-num">01</span><span class="section-title">Visão Geral</span></div>
+  <div class="kpi-grid">
+    <div class="kpi"><div class="lbl">Itens no Filtro</div><div class="val" id="kpiTotal">0</div><div class="foot" id="kpiTotalFoot">de 67 itens no total</div></div>
+    <div class="kpi"><div class="lbl">Concluídos</div><div class="val" id="kpiConcluidos" style="color:var(--c-concluido);">0</div><div class="foot" id="kpiConcluidosFoot">0% do filtro</div></div>
+    <div class="kpi"><div class="lbl">Em Atraso</div><div class="val" id="kpiAtraso" style="color:var(--c-atrasado);">0</div><div class="foot">itens marcados como atrasados</div></div>
+    <div class="kpi"><div class="lbl">% Concluído</div><div class="val" id="kpiPct" style="color:var(--accent-cyan);">0%</div><div class="foot">do total de itens aplicáveis na seleção</div></div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><span class="section-num">02</span><span class="section-title">Mapa Visual por Órgão</span></div>
+  <div class="legend" id="legend"></div>
+  <div class="board" id="board"></div>
+</section>
+
+<section>
+  <div class="section-head"><span class="section-num">03</span><span class="section-title">Progresso por Órgão &amp; Status</span></div>
+  <div class="charts-grid">
+    <div class="chart-box">
+      <h3>% Concluído por Órgão</h3>
+      <div id="chartOrgao"></div>
+    </div>
+    <div class="chart-box">
+      <h3>Distribuição de Status</h3>
+      <div id="chartStatus"></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="section-head"><span class="section-num">04</span><span class="section-title">Itens em Atenção</span></div>
+  <div class="attn-panel">
+    <table>
+      <thead><tr><th>Órgão</th><th>Subgrupo</th><th>Item</th><th>Responsável</th><th>Prioridade</th><th>Término Previsto</th><th>Status</th><th>Atraso</th></tr></thead>
+      <tbody id="attnBody"></tbody>
+    </table>
+    <div class="empty-note" id="attnEmpty" style="display:none;">Nenhum item de prioridade alta ou em atraso no filtro selecionado. <strong style="color:var(--c-concluido);">Tudo sob controle.</strong></div>
+  </div>
+</section>
+
+<footer class="note">
+  Este painel calcula tudo a partir da aba "Controle Detalhado" da planilha Controle_Habite_se.xlsx.
+  Use "Configurar fonte de dados" para conectar direto a um Google Sheets publicado (atualização automática) ou "Carregar arquivo" para subir o .xlsx manualmente.
+</footer>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <h3>Configurar fonte de dados</h3>
+    <p>Cole o link de um Google Sheets publicado como CSV (Arquivo → Compartilhar → Publicar na Web → aba "Controle Detalhado" → formato CSV).</p>
+    <input type="text" id="csvUrlInput" placeholder="https://docs.google.com/spreadsheets/d/e/.../pub?output=csv">
+    <div class="connect-status" id="connectStatus"></div>
+    <div class="permalink-box" id="permalinkBox">Link para salvar/compartilhar: <span id="permalinkText"></span></div>
+    <div class="modal-actions">
+      <button class="btn" id="btnCloseModal">Fechar</button>
+      <button class="btn" id="btnDoConnect" style="border-color:var(--accent-cyan); color:var(--accent-cyan);">Conectar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const ORGAOS = ["Novacap", "CAESB", "NEO Energia", "Bombeiros", "Agefis"];
+const STATUS_LIST = ["Não Iniciado", "Em Andamento", "Concluído", "Atrasado"];
+const PRIORIDADE_LIST = ["Alta", "Média", "Baixa"];
+const BOARD = {"Novacap": [{"tipo": "item", "orgao": "Novacap", "ordem": 1}, {"tipo": "item", "orgao": "Novacap", "ordem": 2}, {"tipo": "item", "orgao": "Novacap", "ordem": 3}, {"tipo": "item", "orgao": "Novacap", "ordem": 4}, {"tipo": "item", "orgao": "Novacap", "ordem": 5}], "CAESB": [{"tipo": "header", "label": "Ligação de Água"}, {"tipo": "item", "orgao": "CAESB", "ordem": 1}, {"tipo": "item", "orgao": "CAESB", "ordem": 2}, {"tipo": "item", "orgao": "CAESB", "ordem": 3}, {"tipo": "item", "orgao": "CAESB", "ordem": 4}, {"tipo": "item", "orgao": "CAESB", "ordem": 5}, {"tipo": "header", "label": "Ligação de Esgoto"}, {"tipo": "item", "orgao": "CAESB", "ordem": 6}, {"tipo": "item", "orgao": "CAESB", "ordem": 7}, {"tipo": "item", "orgao": "CAESB", "ordem": 8}, {"tipo": "item", "orgao": "CAESB", "ordem": 9}, {"tipo": "item", "orgao": "CAESB", "ordem": 10}, {"tipo": "header", "label": "Vistoria de Habite-se"}, {"tipo": "item", "orgao": "CAESB", "ordem": 11}, {"tipo": "item", "orgao": "CAESB", "ordem": 12}, {"tipo": "item", "orgao": "CAESB", "ordem": 13}, {"tipo": "item", "orgao": "CAESB", "ordem": 14}, {"tipo": "item", "orgao": "CAESB", "ordem": 15}, {"tipo": "item", "orgao": "CAESB", "ordem": 16}, {"tipo": "item", "orgao": "CAESB", "ordem": 17}, {"tipo": "item", "orgao": "CAESB", "ordem": 18}, {"tipo": "item", "orgao": "CAESB", "ordem": 19}, {"tipo": "item", "orgao": "CAESB", "ordem": 20}], "NEO Energia": [{"tipo": "header", "label": "Rede Externa"}, {"tipo": "item", "orgao": "NEO Energia", "ordem": 1}, {"tipo": "item", "orgao": "NEO Energia", "ordem": 2}, {"tipo": "item", "orgao": "NEO Energia", "ordem": 3}, {"tipo": "item", "orgao": "NEO Energia", "ordem": 4}, {"tipo": "item", "orgao": "NEO Energia", "ordem": 5}, {"tipo": "item", "orgao": "NEO Energia", "ordem": 6}, {"tipo": "header", "label": "Rede Interna"}, {"tipo": "item", "orgao": "NEO Energia", "ordem": 7}, {"tipo": "item", "orgao": "NEO Energia", "ordem": 8}, {"tipo": "item", "orgao": "NEO Energia", "ordem": 9}, {"tipo": "item", "orgao": "NEO Energia", "ordem": 10}, {"tipo": "item", "orgao": "NEO Energia", "ordem": 11}, {"tipo": "item", "orgao": "NEO Energia", "ordem": 12}], "Bombeiros": [{"tipo": "item", "orgao": "Bombeiros", "ordem": 1}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 2}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 3}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 4}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 5}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 6}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 7}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 8}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 9}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 10}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 11}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 12}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 13}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 14}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 15}, {"tipo": "item", "orgao": "Bombeiros", "ordem": 16}], "Agefis": [{"tipo": "item", "orgao": "Agefis", "ordem": 1}, {"tipo": "item", "orgao": "Agefis", "ordem": 2}, {"tipo": "item", "orgao": "Agefis", "ordem": 3}, {"tipo": "item", "orgao": "Agefis", "ordem": 4}, {"tipo": "item", "orgao": "Agefis", "ordem": 5}, {"tipo": "item", "orgao": "Agefis", "ordem": 6}, {"tipo": "item", "orgao": "Agefis", "ordem": 7}, {"tipo": "item", "orgao": "Agefis", "ordem": 8}, {"tipo": "item", "orgao": "Agefis", "ordem": 9}, {"tipo": "item", "orgao": "Agefis", "ordem": 10}, {"tipo": "item", "orgao": "Agefis", "ordem": 11}, {"tipo": "item", "orgao": "Agefis", "ordem": 12}, {"tipo": "item", "orgao": "Agefis", "ordem": 13}, {"tipo": "item", "orgao": "Agefis", "ordem": 14}]};   // orgao -> [{tipo:"header",label} | {tipo:"item",orgao,ordem}]
+const N_ITEMS = 67;
+const N_ORGAOS = 5;
+
+const STATUS_COLOR = {
+  "Não Iniciado":"var(--c-nao-iniciado)", "Em Andamento":"var(--c-andamento)",
+  "Concluído":"var(--c-concluido)", "Atrasado":"var(--c-atrasado)"
+};
+const STATUS_HEX = {
+  "Não Iniciado":"#5C6B84", "Em Andamento":"#F2B84B",
+  "Concluído":"#33B27A", "Atrasado":"#E15A4C"
+};
+
+const CONFIG = { CSV_URL: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQSIeLziPQc4tWRNAz008JSIILzdhpOK_CYHkyh79OnwZ0EHgqdR71APxKFkG-d4A/pub?gid=350298406&single=true&output=csv" };
+const DEFAULT_CONTROLE = {"controle": [{"orgao": "Novacap", "subgrupo": "Geral", "ordem": 1, "item": "Remover parte do barracão de obra (1ª etapa)", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Novacap", "subgrupo": "Geral", "ordem": 2, "item": "Assentar as tampas definitivas nas caixas de retardo de águas pluviais", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Novacap", "subgrupo": "Geral", "ordem": 3, "item": "Finalizar execução da rede externa", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Novacap", "subgrupo": "Geral", "ordem": 4, "item": "Solicitar vistoria Novacap", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Novacap", "subgrupo": "Geral", "ordem": 5, "item": "Retirar carta de habite-se", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Ligação de Água", "ordem": 1, "item": "Abrigo dos Hidrômetros (Obra Civil)", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Ligação de Água", "ordem": 2, "item": "Veneziana Abrigo", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Ligação de Água", "ordem": 3, "item": "Placa de identificação", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Ligação de Água", "ordem": 4, "item": "Vistoria para ligação de água", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Ligação de Água", "ordem": 5, "item": "Ligação definitiva de água", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Ligação de Esgoto", "ordem": 6, "item": "Tampas definitivas – Caixas CI", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Ligação de Esgoto", "ordem": 7, "item": "Conferir almofadas e escadas de acesso", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Ligação de Esgoto", "ordem": 8, "item": "Extensão de rede de esgoto", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Ligação de Esgoto", "ordem": 9, "item": "Solicitação de vistoria de esgoto", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Ligação de Esgoto", "ordem": 10, "item": "Ligação definitiva de esgoto", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Vistoria de Habite-se", "ordem": 11, "item": "Finalizar reservatórios (Fibragem)", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Vistoria de Habite-se", "ordem": 12, "item": "Identificar reservatórios com placas", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Vistoria de Habite-se", "ordem": 13, "item": "Instalar quadro de comando de bombas", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Vistoria de Habite-se", "ordem": 14, "item": "Testar e conferir bombeamento de água servidas", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Vistoria de Habite-se", "ordem": 15, "item": "Conferir pintura e identificação das tubulações", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Vistoria de Habite-se", "ordem": 16, "item": "Identificar porta definitiva das unidades", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Vistoria de Habite-se", "ordem": 17, "item": "Identificar hidrômetros e shafts", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Vistoria de Habite-se", "ordem": 18, "item": "Verificar tampa de acesso dos reservatórios superiores (5cm acima da platibanda)", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Vistoria de Habite-se", "ordem": 19, "item": "Solicitar vistoria de habite-se", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "CAESB", "subgrupo": "Vistoria de Habite-se", "ordem": 20, "item": "Solicitar carta de habite-se", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "NEO Energia", "subgrupo": "Rede Externa", "ordem": 1, "item": "Instalar poste", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "NEO Energia", "subgrupo": "Rede Externa", "ordem": 2, "item": "Montar Transformador", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "NEO Energia", "subgrupo": "Rede Externa", "ordem": 3, "item": "Executar caixa CB2 com dreno e cantoneiras de suporte", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "NEO Energia", "subgrupo": "Rede Externa", "ordem": 4, "item": "Finalizar infraestrutura até o barramento geral", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "NEO Energia", "subgrupo": "Rede Externa", "ordem": 5, "item": "Instalar placas de identificação das fases e neutro", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "NEO Energia", "subgrupo": "Rede Externa", "ordem": 6, "item": "Solicitar comissionamento da rede", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "NEO Energia", "subgrupo": "Rede Interna", "ordem": 7, "item": "Montar painéis de medição", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "NEO Energia", "subgrupo": "Rede Interna", "ordem": 8, "item": "Instalar placas de identificação", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "NEO Energia", "subgrupo": "Rede Interna", "ordem": 9, "item": "Colocar as placas de advertência na porta dos abrigos", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "NEO Energia", "subgrupo": "Rede Interna", "ordem": 10, "item": "Identificar cabos de prumadas e shafts elétricos", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "NEO Energia", "subgrupo": "Rede Interna", "ordem": 11, "item": "Solicitar vistoria de Habite-se/Ligação definitiva", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "NEO Energia", "subgrupo": "Rede Interna", "ordem": 12, "item": "Retirar carta de habite-se", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 1, "item": "Finalizar casa de máquinas incêndio", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 2, "item": "Testar bombas sprinkler e hidrante (obs.: sem posição de neutro)", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 3, "item": "Verificar posicionamento e identificação do sistema de detecção", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 4, "item": "Instalar placas de rota de fuga", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 5, "item": "Instalar iluminação de emergência", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 6, "item": "Instalar portas corta-fogo", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 7, "item": "Instalar grupo gerador", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 8, "item": "Instalar registro de passeio com dreno na caixa e angulação correta", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 9, "item": "Finalizar central de gás com todas as placas de identificação e placas nos registros de corte internos e externos", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 10, "item": "Verificar aterramentos das massas metálicas da cobertura", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 11, "item": "Contratar laudo de aterramento", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 12, "item": "Verificar vidro das escadas de emergência", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 13, "item": "Fechar parede de gesso resistente ao fogo entre térreo e 1º pavimento", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 14, "item": "Separar documentação legal para entrada no pedido de vistoria", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 15, "item": "Solicitar vistoria de habite-se", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Bombeiros", "subgrupo": "Geral", "ordem": 16, "item": "Retirar carta de habite-se", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Agefis", "subgrupo": "Geral", "ordem": 1, "item": "Finalizar estacionamento com demarcação de vagas e placas", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Agefis", "subgrupo": "Geral", "ordem": 2, "item": "Calçadas em pedra portuguesa (frontal e posterior)", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Agefis", "subgrupo": "Geral", "ordem": 3, "item": "Finalizar revestimentos pilotis e esquadrias pilotis (A, B, C)", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Agefis", "subgrupo": "Geral", "ordem": 4, "item": "Marcenaria pilotis", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Agefis", "subgrupo": "Geral", "ordem": 5, "item": "Irrigação e paisagismo", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Agefis", "subgrupo": "Geral", "ordem": 6, "item": "Calçadas externas", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Agefis", "subgrupo": "Geral", "ordem": 7, "item": "Caixas de escadas e halls coletivos", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Agefis", "subgrupo": "Geral", "ordem": 8, "item": "Cobertura coletiva", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Agefis", "subgrupo": "Geral", "ordem": 9, "item": "Áticos e casa de máquinas", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Agefis", "subgrupo": "Geral", "ordem": 10, "item": "Obra de arte", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Agefis", "subgrupo": "Geral", "ordem": 11, "item": "Desmobilização barracão de obras", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Agefis", "subgrupo": "Geral", "ordem": 12, "item": "Pintura epóxi", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Agefis", "subgrupo": "Geral", "ordem": 13, "item": "Comunicação visual", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}, {"orgao": "Agefis", "subgrupo": "Geral", "ordem": 14, "item": "Verificar acessibilidade", "prioridade": null, "responsavel": null, "status": "Não Iniciado", "data_inicio": null, "data_termino": null, "data_execucao": null, "dias_atraso": 0, "observacoes": null}], "gerado_em": "2026-09-10"};
+
+let state = {
+  controle: DEFAULT_CONTROLE.controle,
+  filtro: "Todos",
+  geradoEm: DEFAULT_CONTROLE.gerado_em,
+};
+
+(function populateFiltro(){
+  const sel = document.getElementById("filtroOrgao");
+  ORGAOS.forEach(o => {
+    const opt = document.createElement("option");
+    opt.value = o; opt.textContent = o;
+    sel.appendChild(opt);
+  });
+})();
+
+function byKey(){
+  const m = {};
+  state.controle.forEach(row => { m[row.orgao + "|" + row.ordem] = row; });
+  return m;
+}
+
+function filteredControle(){
+  return state.filtro === "Todos" ? state.controle : state.controle.filter(c => c.orgao === state.filtro);
+}
+
+function computeKPIs(){
+  const list = filteredControle();
+  const total = list.length;
+  const concluidos = list.filter(x => x.status === "Concluído").length;
+  const atraso = list.filter(x => x.status === "Atrasado").length;
+  const pct = total ? concluidos/total : 0;
+  return {total, concluidos, atraso, pct};
+}
+
+function renderKPIs(){
+  const k = computeKPIs();
+  document.getElementById("kpiTotal").textContent = k.total;
+  document.getElementById("kpiTotalFoot").textContent = `de ${N_ITEMS} itens no total`;
+  document.getElementById("kpiConcluidos").textContent = k.concluidos;
+  document.getElementById("kpiConcluidosFoot").textContent = `${k.total ? Math.round(k.concluidos/k.total*100) : 0}% do filtro`;
+  document.getElementById("kpiAtraso").textContent = k.atraso;
+  document.getElementById("kpiPct").textContent = Math.round(k.pct*100) + "%";
+}
+
+function renderLegend(){
+  const el = document.getElementById("legend");
+  el.innerHTML = "";
+  STATUS_LIST.forEach(s => {
+    const item = document.createElement("div");
+    item.className = "legend-item";
+    item.innerHTML = `<span class="legend-dot" style="background:${STATUS_HEX[s]}"></span>${s}`;
+    el.appendChild(item);
+  });
+}
+
+function renderBoard(){
+  const el = document.getElementById("board");
+  el.innerHTML = "";
+  const map = byKey();
+  ORGAOS.forEach(orgao => {
+    if(state.filtro !== "Todos" && state.filtro !== orgao) return;
+    const rows = BOARD[orgao] || [];
+    const itemRows = rows.filter(r => r.tipo === "item").map(r => map[orgao + "|" + r.ordem]).filter(Boolean);
+    const total = itemRows.length;
+    const concl = itemRows.filter(x => x.status === "Concluído").length;
+    const pct = total ? Math.round(concl/total*100) : 0;
+
+    const col = document.createElement("div");
+    col.className = "org-col";
+    const head = document.createElement("div");
+    head.className = "org-head";
+    head.innerHTML = `${orgao}<span class="pct">${pct}% concluído</span>`;
+    col.appendChild(head);
+    const body = document.createElement("div");
+    body.className = "org-body";
+    rows.forEach(r => {
+      if(r.tipo === "header"){
+        const h = document.createElement("div");
+        h.className = "subhead";
+        h.textContent = r.label;
+        body.appendChild(h);
+      } else {
+        const row = map[orgao + "|" + r.ordem];
+        if(!row) return;
+        const div = document.createElement("div");
+        div.className = "item-row";
+        div.dataset.status = row.status || "Não Iniciado";
+        div.textContent = row.item;
+        div.title = `${row.item} · ${row.status}${row.responsavel ? " · " + row.responsavel : ""}`;
+        body.appendChild(div);
+      }
+    });
+    col.appendChild(body);
+    el.appendChild(col);
+  });
+}
+
+function renderChartOrgao(){
+  const wrap = document.getElementById("chartOrgao");
+  wrap.innerHTML = "";
+  const map = byKey();
+  ORGAOS.forEach(orgao => {
+    const rows = (BOARD[orgao] || []).filter(r => r.tipo === "item").map(r => map[orgao + "|" + r.ordem]).filter(Boolean);
+    const total = rows.length;
+    const concl = rows.filter(x => x.status === "Concluído").length;
+    const pct = total ? concl/total : 0;
+    const row = document.createElement("div");
+    row.className = "bar-row";
+    row.innerHTML = `
+      <div class="bar-label">${orgao}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${Math.round(pct*100)}%; background:var(--accent-cyan);"></div></div>
+      <div class="bar-val">${Math.round(pct*100)}%</div>`;
+    wrap.appendChild(row);
+  });
+}
+
+function renderChartStatus(){
+  const wrap = document.getElementById("chartStatus");
+  wrap.innerHTML = "";
+  const counts = STATUS_LIST.map(s => state.controle.filter(c => c.status === s).length);
+  const total = state.controle.length || 1;
+  let acc = 0;
+  const stops = [];
+  STATUS_LIST.forEach((s,i) => {
+    const start = acc/total*360;
+    acc += counts[i];
+    const end = acc/total*360;
+    stops.push(`${STATUS_HEX[s]} ${start}deg ${end}deg`);
+  });
+  const donutBox = document.createElement("div");
+  donutBox.className = "donut-wrap";
+  const donut = document.createElement("div");
+  donut.className = "donut";
+  donut.style.background = counts.every(c=>c===0) ? "var(--c-nao-iniciado)" : `conic-gradient(${stops.join(",")})`;
+  const center = document.createElement("div");
+  center.className = "donut-center";
+  const pctConcl = Math.round((counts[2]/total)*100);
+  center.innerHTML = `<div class="pct">${pctConcl}%</div><div class="lbl">Concluído</div>`;
+  donut.appendChild(center);
+  const legend = document.createElement("div");
+  legend.className = "donut-legend";
+  STATUS_LIST.forEach((s,i) => {
+    const item = document.createElement("div");
+    item.className = "dl-item";
+    item.innerHTML = `<span class="dl-dot" style="background:${STATUS_HEX[s]}"></span>${s}<b>${counts[i]}</b>`;
+    legend.appendChild(item);
+  });
+  donutBox.appendChild(donut);
+  donutBox.appendChild(legend);
+  wrap.appendChild(donutBox);
+}
+
+function fmtDate(iso){
+  if(!iso) return "—";
+  const [y,m,d] = String(iso).split("-");
+  if(!y||!m||!d) return "—";
+  return `${d}/${m}/${y}`;
+}
+
+function renderAttention(){
+  const body = document.getElementById("attnBody");
+  const empty = document.getElementById("attnEmpty");
+  body.innerHTML = "";
+  const c = filteredControle();
+  let items = c.filter(x => x.status !== "Concluído" && (x.prioridade === "Alta" || x.status === "Atrasado" || (x.dias_atraso||0) > 0));
+  items.sort((a,b) => (b.dias_atraso||0) - (a.dias_atraso||0) || (a.prioridade==="Alta"?-1:1));
+  items = items.slice(0, 25);
+  if(items.length === 0){
+    empty.style.display = "block";
+    document.querySelector(".attn-panel table").style.display = "none";
+    return;
+  }
+  empty.style.display = "none";
+  document.querySelector(".attn-panel table").style.display = "table";
+  items.forEach(it => {
+    const tr = document.createElement("tr");
+    const statusClass = "s-" + (it.status||"").replace(/ /g,"_");
+    const prioClass = "p-" + (it.prioridade||"");
+    tr.innerHTML = `
+      <td>${it.orgao}</td>
+      <td>${it.subgrupo||"—"}</td>
+      <td>${it.item}</td>
+      <td>${it.responsavel || "—"}</td>
+      <td>${it.prioridade ? `<span class="tag ${prioClass}">${it.prioridade}</span>` : "—"}</td>
+      <td class="mono">${fmtDate(it.data_termino)}</td>
+      <td><span class="tag ${statusClass}">${it.status}</span></td>
+      <td>${it.dias_atraso > 0 ? it.dias_atraso + "d" : "—"}</td>`;
+    body.appendChild(tr);
+  });
+}
+
+function renderAll(){
+  renderKPIs();
+  renderLegend();
+  renderBoard();
+  renderChartOrgao();
+  renderChartStatus();
+  renderAttention();
+}
+
+document.getElementById("filtroOrgao").addEventListener("change", e => {
+  state.filtro = e.target.value;
+  renderAll();
+});
+
+// ---------------------------------------------------------- CSV / xlsx ---
+function parseCSV(text){
+  const rows = [];
+  let row = [], cur = "", inQ = false;
+  for(let i=0;i<text.length;i++){
+    const ch = text[i];
+    if(inQ){
+      if(ch === '"'){ if(text[i+1] === '"'){ cur += '"'; i++; } else inQ = false; }
+      else cur += ch;
+    } else {
+      if(ch === '"') inQ = true;
+      else if(ch === ','){ row.push(cur); cur = ""; }
+      else if(ch === '\n'){ row.push(cur); rows.push(row); row = []; cur = ""; }
+      else if(ch === '\r'){ /* skip */ }
+      else cur += ch;
+    }
+  }
+  if(cur.length || row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(r => r.length > 1 || r[0] !== "");
+}
+
+function parseCSVDate(s){
+  if(!s) return null;
+  s = String(s).trim();
+  if(!s) return null;
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return `${m[1]}-${m[2].padStart(2,"0")}-${m[3].padStart(2,"0")}`;
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m) return `${m[3]}-${m[2].padStart(2,"0")}-${m[1].padStart(2,"0")}`;
+  return null;
+}
+
+function excelDateToISO(v){
+  if(v instanceof Date) return v.toISOString().slice(0,10);
+  return null;
+}
+
+// Column order in "Controle Detalhado": Órgão, Subgrupo, Ordem no Órgão, Item,
+// Prioridade, Responsável, Status, Data Início Prevista, Data Término Prevista,
+// Data de Execução (Real), Dias de Atraso, Observações, Chave, Chave Ordem
+function controleFromRows(rows, isExcel){
+  return rows.filter(r => r[0]).map(r => ({
+    orgao: r[0], subgrupo: r[1] || "Geral", ordem: Number(r[2]) || 0,
+    item: r[3], prioridade: r[4] || null, responsavel: r[5] || null,
+    status: r[6] || "Não Iniciado",
+    data_inicio: isExcel ? excelDateToISO(r[7]) : parseCSVDate(r[7]),
+    data_termino: isExcel ? excelDateToISO(r[8]) : parseCSVDate(r[8]),
+    data_execucao: isExcel ? excelDateToISO(r[9]) : parseCSVDate(r[9]),
+    dias_atraso: Number(r[10]) || 0,
+    observacoes: r[11] || null,
+  }));
+}
+
+function setSourceIndicator(kind, detail){
+  const el = document.getElementById("srcNote");
+  if(kind === "live"){ el.className = "src-note live"; el.textContent = "Fonte: ao vivo (Google Sheets)"; }
+  else if(kind === "error"){ el.className = "src-note err"; el.textContent = "Falha na conexão · tentar de novo"; }
+  else if(kind === "file"){ el.className = "src-note live"; el.textContent = "Fonte: arquivo carregado"; }
+  else if(kind === "loading"){ el.className = "src-note"; el.textContent = "Carregando…"; }
+  else { el.className = "src-note"; el.textContent = `Dados de ${state.geradoEm}`; }
+}
+
+function loadFromCSV(url, fromModal){
+  setSourceIndicator("loading");
+  const statusEl = document.getElementById("connectStatus");
+  if(fromModal){ statusEl.className = "connect-status"; statusEl.textContent = "Conectando…"; }
+  fetch(url)
+    .then(res => { if(!res.ok) throw new Error("HTTP " + res.status); return res.text(); })
+    .then(text => {
+      const rows = parseCSV(text);
+      rows.shift();
+      const controle = controleFromRows(rows, false);
+      if(controle.length === 0) throw new Error("Planilha vazia ou aba incorreta");
+      state.controle = controle;
+      state.geradoEm = new Date().toISOString().slice(0,10);
+      state.filtro = "Todos";
+      document.getElementById("filtroOrgao").value = "Todos";
+      renderAll();
+      setSourceIndicator("live", url);
+      const permalink = new URL(location.href);
+      permalink.search = "";
+      permalink.searchParams.set("src", url);
+      history.replaceState(null, "", permalink.toString());
+      if(fromModal){
+        statusEl.className = "connect-status ok";
+        statusEl.textContent = "✓ Conectado — dados carregados com sucesso.";
+        document.getElementById("permalinkText").textContent = permalink.toString();
+        document.getElementById("permalinkBox").classList.add("show");
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      setSourceIndicator("error");
+      if(fromModal){
+        statusEl.className = "connect-status err";
+        statusEl.textContent = "✗ Não consegui carregar. Confira se o link foi publicado como CSV e está acessível publicamente.";
+      }
+    });
+}
+
+function parseWorkbook(workbook){
+  const wsControle = workbook.Sheets["Controle Detalhado"];
+  if(!wsControle){
+    alert("Não encontrei a aba 'Controle Detalhado' no arquivo selecionado. Verifique se é a planilha de controle correta.");
+    return null;
+  }
+  const rowsControle = XLSX.utils.sheet_to_json(wsControle, {header:1, range:1, defval:null, cellDates:true});
+  const controle = controleFromRows(rowsControle, true);
+  return {controle};
+}
+
+function handleFile(file){
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try{
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, {type:"array", cellDates:true});
+      const parsed = parseWorkbook(workbook);
+      if(!parsed) return;
+      state.controle = parsed.controle;
+      state.geradoEm = new Date().toISOString().slice(0,10);
+      state.filtro = "Todos";
+      document.getElementById("filtroOrgao").value = "Todos";
+      renderAll();
+      setSourceIndicator("file");
+    } catch(err){
+      console.error(err);
+      alert("Não consegui ler esse arquivo. Confira se é o .xlsx gerado pela planilha de controle.");
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+document.getElementById("btnUpload").addEventListener("click", () => document.getElementById("fileInput").click());
+document.getElementById("fileInput").addEventListener("change", e => handleFile(e.target.files[0]));
+document.getElementById("btnConnect").addEventListener("click", () => {
+  document.getElementById("modalBackdrop").classList.add("show");
+});
+document.getElementById("btnCloseModal").addEventListener("click", () => {
+  document.getElementById("modalBackdrop").classList.remove("show");
+});
+document.getElementById("btnDoConnect").addEventListener("click", () => {
+  const url = document.getElementById("csvUrlInput").value.trim();
+  if(url) loadFromCSV(url, true);
+});
+
+function getSrcParam(){
+  return new URLSearchParams(location.search).get("src");
+}
+
+function init(){
+  renderAll();
+  const srcParam = getSrcParam();
+  if(srcParam){
+    document.getElementById("csvUrlInput").value = srcParam;
+    loadFromCSV(srcParam, false);
+  } else if(CONFIG.CSV_URL){
+    document.getElementById("csvUrlInput").value = CONFIG.CSV_URL;
+    loadFromCSV(CONFIG.CSV_URL, false);
+  }
+}
+init();
+</script>
